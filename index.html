@@ -1,0 +1,711 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Tributo a Debora</title>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/gsap.min.js"></script>
+
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    html, body {
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      background-color: #02060e;
+      font-family: Georgia, serif;
+      color: #fff;
+    }
+
+    #webgl-canvas {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      z-index: 1;
+    }
+
+    /* ---------- Foto ---------- */
+    #photo-layer {        /* layer a tutto schermo che inizialmente tiene la foto al centro */
+      position: absolute;
+      inset: 0;           /* Equivale a: top: 0;right: 0;bottom: 0;left: 0;  Occupa tutto lo spazio disponibile */
+      z-index: 2;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      pointer-events: none;
+      transition: all 2s ease; /* quando cambiano proprietà animabili, la transizione dura 2 secondi, con accelerazione/decelerazione morbida */
+    }
+
+    #photo-layer.split-mode {      /* viene applicato solo quando #photo-layer ha anche la classe split-mode */
+      justify-content: flex-start; /* sposta il contenuto del Flexbox dall'allineamento centrale verso sinistra */
+      padding-left: 8vw;           /* aggiunge uno spazio a sinistra pari all'8% della larghezza della finestra */
+    }
+
+    .bg-photo {
+      position: absolute;
+      max-width: 42vh;    /* la larghezza massima è il 42% dell'altezza della finestra */
+      max-height: 58vh;
+      border-radius: 8px;
+		/* aggiunge un'ombra nera molto forte, creando profondità e una dorata molto tenue */
+      box-shadow: 0 0 50px rgba(0, 0, 0, 0.9), 0 0 30px rgba(212, 175, 55, 0.2);
+      opacity: 0;
+      transform: scale(1);
+      object-fit: cover;
+      will-change: transform, opacity;
+      backface-visibility: hidden;
+      transform-origin: center center;
+    }
+
+    /* ---------- Strofe animate ---------- */
+    #overlay {
+      position: absolute;
+      inset: 0;
+      z-index: 3;
+      display: flex;
+      justify-content: center;
+      align-items: flex-end;
+      padding: 40px 40px 11vh;
+      pointer-events: none;
+      text-align: center;
+      background: radial-gradient(circle, rgba(2, 6, 14, 0.3) 0%, rgba(2, 6, 14, 0.75) 100%);
+    }
+
+    .strophe {
+      position: absolute;
+      max-width: 850px;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+      align-items: center;
+    }
+
+    .line {
+      opacity: 0;
+      font-size: 1.2rem;
+      line-height: 1.5;
+      letter-spacing: 1.5px;
+      color: #3385ff;
+      text-shadow: 0 0 12px rgba(255, 255, 255, 0.8), 0 0 24px rgba(212, 175, 55, 0.5);
+      transform: translateY(20px);
+      filter: blur(5px);
+    }
+
+    /* ---------- Poesia finale ---------- */
+    #final-poem-panel {
+      position: absolute;
+      top: 0;
+      right: 0;
+      width: 50vw;
+      height: 100%;
+      z-index: 4;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: flex-start;
+      padding: 50px 60px 50px 40px;
+      opacity: 0;
+/*      transform: translateX(100px);*/
+      pointer-events: none;
+      background: linear-gradient(to right, rgba(2, 6, 14, 0) 0%, rgba(2, 6, 14, 0.85) 30%, rgba(2, 6, 14, 0.95) 100%);
+    }
+
+    #final-full-poem {
+      max-width: 550px;
+      font-size: 1.05rem;
+      line-height: 1.7;
+      color: #f3e5ab;
+      text-shadow: 0 0 10px rgba(212, 175, 55, 0.3);
+      text-align: left;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+      max-height: 85vh;
+      overflow-y: auto;
+      scrollbar-width: none;
+    }
+
+    #final-full-poem::-webkit-scrollbar {
+      display: none;
+    }
+
+    #final-full-poem p {
+      white-space: pre-line; /* rispetta gli a capo del testo */
+    }
+
+    /* ---------- Schermata iniziale e firma ---------- */
+    #start-screen {
+      position: absolute;
+      inset: 0;
+      z-index: 10;
+      background: #02060e;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      cursor: pointer;
+    }
+
+    #inizia-btn {
+      padding: 16px 42px;
+      font-size: 1.5rem;
+      background: transparent;
+      color: #d4af37;
+      border: 1px solid #d4af37;
+      border-radius: 30px;
+      cursor: pointer;
+      letter-spacing: 3px;
+      transition: all 0.3s ease;
+      box-shadow: 0 0 15px rgba(212, 175, 55, 0.2);
+    }
+
+    #inizia-btn:hover {
+      background: rgba(212, 175, 55, 0.15);
+      box-shadow: 0 0 25px rgba(212, 175, 55, 0.5);
+    }
+
+    #signature {
+      position: absolute;
+      left: 35px;
+      bottom: 25px;
+      z-index: 5;
+      font-size: 0.85rem;
+      font-style: italic;
+      letter-spacing: 1.5px;
+      color: rgba(243, 229, 171, 0.65);
+      text-shadow: 0 0 10px rgba(212, 175, 55, 0.25);
+      opacity: 0;
+      pointer-events: none;
+    }
+
+    /* ---------- Mobile ---------- */
+	 
+@media (max-width: 600px) {
+  #final-full-poem { line-height: 1.45; gap: 10px; }
+  #signature { left: 0; right: 0; bottom: 12px; text-align: center; }
+}
+	 
+    @media (max-width: 900px) {
+      #photo-layer.split-mode {
+        justify-content: center;
+        padding-left: 0;
+        opacity: 0.3;
+      }
+
+      #final-poem-panel {
+        width: 100vw;
+        padding: 30px;
+        background: rgba(2, 6, 14, 0.9);
+      }
+
+      .line {
+        font-size: 1.25rem;
+      }
+    }
+	 
+	 
+	#photo-progress { position: fixed; left: 8vw; right: 8vw; bottom: 24px; height: 2px; background: rgba(255,255,255,0.15); z-index: 20; overflow: hidden; opacity: 0.7; }
+	#photo-progress-bar { width: 0%; height: 100%; background: rgba(75,75,195,0.65); transition: width 1s ease; }
+
+/* Telefonino */
+@media (max-width: 600px) {
+  #final-poem-panel { width: 100vw; padding: 30px 24px; align-items: center; background: rgba(2, 6, 14, 0.92); }
+  #final-full-poem { max-width: 100%; width: 100%; font-size: 0.82rem; line-height: 1.45; gap: 12px; max-height: 82vh; text-align: center; }
+  #final-full-poem p { margin: 0; }
+}
+
+  </style>
+</head>
+
+<body>
+
+  <div id="start-screen">
+    <button id="inizia-btn">INIZIA</button>
+  </div>
+
+  <canvas id="webgl-canvas"></canvas>
+
+  <div id="photo-layer">
+    <img id="photo-display-1" class="bg-photo" alt="Foto Debora">
+    <img id="photo-display-2" class="bg-photo" alt="Foto Debora">
+  </div>
+
+  <div id="overlay"></div>
+
+  <div id="final-poem-panel">
+    <div id="final-full-poem"></div>
+  </div>
+
+  <div id="signature">Cristiano, 25/9/26</div>
+
+  <audio id="audio_a" src="musica/1_Hans Zimmer-Interstellar_ViOLiNiA_PianoViolinVersion.mp3" crossorigin="anonymous"></audio>
+  <audio id="audio_b" src="musica/2_LaCura_Piano-Orchestra.mp3" crossorigin="anonymous"></audio>
+
+	<div id="photo-progress"><div id="photo-progress-bar"></div></div>
+	
+
+<script>
+  // ===========================================================================
+  //  CONFIGURAZIONE
+  // ===========================================================================
+
+  // Cartelle delle foto (relative a questo file)
+  const DIR_FOTO_MUSICA = "foto_musica/";
+  const DIR_FOTO_VARIE  = "foto_varie/";
+
+  // Foto mostrate durante la poesia
+  const fotoMusicaNomi = [
+    "Bisceglie.JPG","conc2007accademia_1.JPG","conc2007accademia_2.jfif","conc2007accademia_3.jpg","fine.jpg","Image 2026-07-11 at 21.10.21 (1).jpeg","Image 2026-07-11 at 21.10.21 (2).jpeg","Image 2026-07-11 at 21.10.21 (3).jpeg","Image 2026-07-11 at 21.10.21 (4).jpeg","Image 2026-07-11 at 21.10.21 (5).jpeg","Image 2026-07-11 at 21.10.21 (6).jpeg","Image 2026-07-11 at 21.10.21 (7).jpeg","Image 2026-07-11 at 21.10.21 (8).jpeg","Image 2026-07-11 at 21.10.21.jpeg","Image 2026-07-13 at 16.24.04.jpeg","IMG_20200808_221630.jpg","IMG_20200808_222411_mod.jfif","studioDSC_0009.jpg"
+  ];
+
+  // Foto mostrate dopo la poesia, accanto al testo completo
+  const fotoExtraNomi = [
+    "127ritorno.jpg","5.jpg","65pranzo.jpg","78miniera.jpg","debora 025.jpg","debora 5.jpg","delfino 2.jpg","IMG_20200928_190233.jpg","IMG_20201018_181242.jpg","IMG_20201223_185243.jpg","IMG_6700.JPG","IMG_6717.JPG","IMG_6825.JPG","IMG_7953.JPG","IMG_8038.JPG","IMG_8086.JPG","IMG_8145.JPG","io e cita.jpg","playacar e io.jpg","ponte1209.jpg","risto.jpg","Suono_il_trombone.jpg","vinny.jpg","xcaret.jpg","xel-ha.jpg","xel-ha002.jpg"
+  ];
+
+  const testoPoesia = [
+    "Debora suonava con grazia e passione,\ne ogni suo arco donava emozione;\ndal legno e dalle corde, con gesto leggero,\nnasceva un canto limpido e vero.",
+    "Ora il suo violino riposa in silenzio,\ncustodisce il ricordo e l’amore più intenso;\nma presto una mano lo farà nuovamente suonare,\nperché ciò che lei amava non può terminare.",
+    "Saranno i suoi studenti, con cura e rispetto,\na stringere l’archetto e seguire quel gesto;\ne sulle sue corde, con nuovo vigore,\nfaranno rivivere la musica del cuore.",
+    "Ogni nota che nasce, ogni suono che sale,\nporterà il suo ricordo, profondo e speciale;\ncome una luce lontana tra milioni di stelle,\nla sua musica vivrà, tra le note più belle.",
+    "Nel tempo che scorre e poi sembra svanire,\nresta una musica che non vuole finire;\ne mentre quei violini continueranno a suonare,\nsarà come cercarla, per poterla sfiorare.",
+    "Così Debora vivrà, oltre il tempo e il dolore,\nin ogni giovane mano, in ogni nota d’amore;\ne nel viaggio infinito che la musica intraprende,\nquelle note vivranno in un mare di stelle."
+  ];
+
+  // Tempi in secondi. Ogni foto resta visibile FORMAZIONE + ZOOM + PAUSA
+  const TEMPO_FORMAZIONE_FOTO = 3;
+  const TEMPO_ZOOM_FOTO       = 6;
+  const TEMPO_PAUSA_FOTO      = 2;
+  const TEMPO_PERMANENZA_STROFA = 18;
+  const TEMPO_ATTESA_FINALE     = 3;   // pausa dopo l'ultima strofa, prima della schermata finale
+
+  // Audio
+  const CROSSFADE_SECONDI = 20;   // durata della dissolvenza tra i due brani
+  const CURVA = 2;                // 1 = lineare; più alto = ingresso più lento
+
+
+  // ===========================================================================
+  //  UTILITÀ
+  // ===========================================================================
+
+  function shuffleArray(array) {
+    for (let i = array.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [array[i], array[j]] = [array[j], array[i]];
+    }
+    return array;
+  }
+
+  // Costruisce il percorso codificando il nome file (spazi, parentesi, ecc.)
+  function percorso(cartella, nomeFile) {
+    return cartella + encodeURIComponent(nomeFile);
+  }
+
+  function preloadImage(src)
+  {
+    return new Promise((resolve, reject) => {
+      const img = new Image();
+      img.onload = () => resolve(img);
+      img.onerror = () => reject(new Error("Impossibile caricare: " + src));
+      img.src = src;
+    });
+  }
+
+
+  // ===========================================================================
+  //  TESTO: strofe animate e poesia finale
+  // ===========================================================================
+
+  const overlay = document.getElementById("overlay");
+  const finalPoem = document.getElementById("final-full-poem");
+
+  testoPoesia.forEach((strofaTesto, index) => {
+    const stropheDiv = document.createElement("div");
+    stropheDiv.id = "strophe-" + index;
+    stropheDiv.className = "strophe";
+
+    strofaTesto.split("\n").forEach(riga => {
+      const lineDiv = document.createElement("div");
+      lineDiv.className = "line";
+      lineDiv.textContent = riga;
+      stropheDiv.appendChild(lineDiv);
+    });
+    overlay.appendChild(stropheDiv);
+
+    const p = document.createElement("p");
+    p.textContent = strofaTesto;
+    finalPoem.appendChild(p);
+  });
+
+  // Dissolve tutte le righe visibili, tranne quelle della strofa indicata
+  function dissolviRighe(strofaDaLasciare = null)
+  {
+    const righe = [...document.querySelectorAll(".line")]
+      .filter(riga => riga.parentElement.id !== strofaDaLasciare);
+
+    gsap.to(righe, {
+      opacity: 0,
+      y: -20,
+      filter: "blur(8px)",
+      duration: 0.8,
+      overwrite: true
+    });
+  }
+
+  function animateStrophe(index)
+  {
+    const id = "strophe-" + index;
+    dissolviRighe(id);
+
+    const righe = document.querySelectorAll("#" + id + " .line");
+    gsap.fromTo(
+      righe,
+      { opacity: 0, y: 20, filter: "blur(5px)" },
+      { opacity: 1, y: 0, filter: "blur(0px)", duration: 2, stagger: 2.2, ease: "power2.out" }
+    );
+  }
+
+
+  // ===========================================================================
+  //  SFONDO 3D (particelle)
+  // ===========================================================================
+
+  const canvas = document.getElementById("webgl-canvas");
+  const scene = new THREE.Scene();
+  scene.fog = new THREE.FogExp2(0x000511, 0.002);
+
+  const camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 1000);
+  camera.position.z = 100;
+
+  const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
+  renderer.setSize(window.innerWidth, window.innerHeight);
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+
+  const particleCount = 10000;
+  const geometry = new THREE.BufferGeometry();
+  const positions = new Float32Array(particleCount * 3);
+  const colors = new Float32Array(particleCount * 3);
+  const colorAbyss = new THREE.Color(0x00aaff);
+
+  for (let i = 0; i < particleCount * 3; i += 3) {
+    positions[i]     = (Math.random() - 0.5) * 300;
+    positions[i + 1] = (Math.random() - 0.5) * 300;
+    positions[i + 2] = (Math.random() - 0.5) * 300;
+
+    colors[i]     = colorAbyss.r;
+    colors[i + 1] = colorAbyss.g;
+    colors[i + 2] = colorAbyss.b;
+  }
+
+  geometry.setAttribute("position", new THREE.BufferAttribute(positions, 3));
+  geometry.setAttribute("color", new THREE.BufferAttribute(colors, 3));
+
+  // Texture tonda e sfumata per le particelle
+  const canvasTexture = document.createElement("canvas");
+  canvasTexture.width = 16;
+  canvasTexture.height = 16;
+
+  const ctxTexture = canvasTexture.getContext("2d");
+  const grad = ctxTexture.createRadialGradient(8, 8, 0, 8, 8, 8);
+  grad.addColorStop(0, "rgba(255,255,255,1)");
+  grad.addColorStop(1, "rgba(255,255,255,0)");
+  ctxTexture.fillStyle = grad;
+  ctxTexture.fillRect(0, 0, 16, 16);
+
+  const material = new THREE.PointsMaterial({
+    size: 1.8,
+    vertexColors: true,
+    map: new THREE.CanvasTexture(canvasTexture),
+    transparent: true,
+    opacity: 0.8,
+    blending: THREE.AdditiveBlending,
+    depthWrite: false
+  });
+
+  const particleSystem = new THREE.Points(geometry, material);
+  scene.add(particleSystem);
+
+  const speedY = 0.05;
+  const rotationSpeed = 0.0005;
+
+  function animate() {
+    requestAnimationFrame(animate);
+
+    const pos = particleSystem.geometry.attributes.position.array;
+    for (let i = 1; i < particleCount * 3; i += 3) {
+      pos[i] += speedY;
+      if (pos[i] > 150) pos[i] = -150;
+    }
+
+    particleSystem.geometry.attributes.position.needsUpdate = true;
+    particleSystem.rotation.y += rotationSpeed;
+    renderer.render(scene, camera);
+  }
+  animate();
+
+  window.addEventListener("resize", () => {
+    camera.aspect = window.innerWidth / window.innerHeight;
+    camera.updateProjectionMatrix();
+    renderer.setSize(window.innerWidth, window.innerHeight);
+  });
+
+
+  // ===========================================================================
+  //  FOTO
+  // ===========================================================================
+
+  const photosMusicaList = fotoMusicaNomi.map(f => percorso(DIR_FOTO_MUSICA, f));
+  const photosExtraList  = fotoExtraNomi.map(f => percorso(DIR_FOTO_VARIE, f));
+
+  let activePhotosList = shuffleArray([...photosMusicaList]);
+  let currentPhotoIndex = 0;
+  let activePhotoElement = 1;
+  let cambioFotoInCorso = false;
+  let fallimentiConsecutivi = 0;
+
+let stropheInterval = null;
+let faseFoto = "musica";
+let fotoMostrate = 0;
+let totaleFoto = photosMusicaList.length + photosExtraList.length;
+
+
+  async function showNextPhoto()
+  {
+    if (!activePhotosList.length || cambioFotoInCorso) return;
+    cambioFotoInCorso = true;
+
+    const currentImg = document.getElementById("photo-display-" + activePhotoElement);
+    const nextImg = document.getElementById("photo-display-" + (activePhotoElement === 1 ? 2 : 1));
+
+    // Si passa subito alla foto successiva: se questa non si carica, la si salta
+    const src = activePhotosList[currentPhotoIndex];
+    currentPhotoIndex = (currentPhotoIndex + 1) % activePhotosList.length;
+
+    try {
+      // La foto deve essere completamente scaricata prima di iniziare l'animazione.
+      await preloadImage(src);
+      fallimentiConsecutivi = 0;
+aggiornaProgressBar();
+
+      gsap.killTweensOf(currentImg);
+      gsap.killTweensOf(nextImg);
+
+      nextImg.src = src;
+      gsap.set(nextImg, { opacity: 0.1, scale: 0.9, filter: "blur(10px)" });
+
+      activePhotoElement = activePhotoElement === 1 ? 2 : 1;
+
+      // Dissolvenza della foto precedente
+      gsap.to(currentImg, { opacity: 0, duration: 1.5, ease: "power1.inOut" });
+
+      // Precarica la foto seguente mentre questa è visibile
+      preloadImage(activePhotosList[currentPhotoIndex]).catch(() => {});
+
+      // Formazione, zoom, pausa: la promessa si risolve a fine animazione
+      await new Promise(resolve => {
+        const tl = gsap.timeline({ onComplete: resolve });
+        tl.to(nextImg, { opacity: 0.8, scale: 1, filter: "blur(0px)", duration: TEMPO_FORMAZIONE_FOTO, ease: "none" });
+        tl.to(nextImg, { scale: 1.4, duration: TEMPO_ZOOM_FOTO, ease: "none" });
+        tl.to({}, { duration: TEMPO_PAUSA_FOTO });
+      });
+
+    } catch (error) {
+      console.warn(error.message);
+      fallimentiConsecutivi++;
+
+      // Se nessuna foto della lista si carica, ci si ferma invece di girare a vuoto
+      if (fallimentiConsecutivi >= activePhotosList.length) {
+        console.error("Nessuna foto caricabile: controllare le cartelle e i nomi dei file.");
+        cambioFotoInCorso = false;
+        return;
+      }
+    }
+
+cambioFotoInCorso = false;
+if (currentPhotoIndex === 0 && faseFoto === "musica" && photosExtraList.length > 0) {
+  faseFoto = "extra";
+  activePhotosList = shuffleArray([...photosExtraList]);
+  currentPhotoIndex = 0;
+  fallimentiConsecutivi = 0;
+} else if (currentPhotoIndex === 0 && faseFoto === "extra") {
+  clearInterval(stropheInterval);
+showFinePhoto();
+setTimeout(showFinalScreen, 1800);
+  return;
+}
+showNextPhoto();
+  }
+
+
+  // ===========================================================================
+  //  SCHERMATA FINALE
+  // ===========================================================================
+
+
+function showFinePhoto()
+{
+	gsap.to("#photo-progress", { opacity: 0, duration: 1.2, ease: "power2.out" });
+  const currentImg = document.getElementById("photo-display-" + activePhotoElement);
+  const nextImg = document.getElementById("photo-display-" + (activePhotoElement === 1 ? 2 : 1));
+  const src = percorso(DIR_FOTO_MUSICA, "fine.jpg");
+  preloadImage(src).then(() => {
+    gsap.killTweensOf(currentImg);
+    gsap.killTweensOf(nextImg);
+    nextImg.src = src;
+    gsap.set(nextImg, { opacity: 0, scale: 1.5, filter: "blur(8px)" });
+    activePhotoElement = activePhotoElement === 1 ? 2 : 1;
+    gsap.to(currentImg, { opacity: 0, duration: 2.5, ease: "power1.inOut" });
+    gsap.to(nextImg, { opacity: .8, scale: 1.2, filter: "blur(0px)", duration: 3.5, ease: "power2.out" });
+    gsap.to("#photo-progress-bar", { width: "100%", duration: 1, ease: "power2.out" });
+  }).catch(error => console.warn("Impossibile caricare fine.jpg:", error));
+}
+
+
+function showFinalScreen()
+{
+  dissolviRighe();
+  gsap.to("#final-poem-panel", { opacity: .8, duration: 2.5, ease: "power2.out" });
+  gsap.to("#signature", { opacity: 1, duration: 3, delay: 1.5, ease: "power2.out" });
+}
+
+
+function startStropheSequence(onComplete)
+{
+  animateStrophe(0);
+
+  let prossimaStrofa = 1;
+
+  const stropheInterval = setInterval(() => {
+    if (prossimaStrofa < testoPoesia.length) {
+
+      animateStrophe(prossimaStrofa++);
+
+    } else {
+
+      clearInterval(stropheInterval);
+
+      setTimeout(() => {
+        if (onComplete) onComplete();
+      }, TEMPO_ATTESA_FINALE * 1000);
+    }
+
+  }, TEMPO_PERMANENZA_STROFA * 1000);
+}
+
+
+function startExtraPhase()
+{
+  if (photosExtraList.length > 0) {
+    activePhotosList = shuffleArray([...photosExtraList]);
+    currentPhotoIndex = 0;
+    fallimentiConsecutivi = 0;
+  }
+
+  showNextPhoto();
+
+  startStropheSequence(() => {
+    showFinalScreen();
+  });
+}
+
+
+function startShow()
+{
+  showNextPhoto();
+  animateStrophe(0);
+  let prossimaStrofa = 1;
+  stropheInterval = setInterval(() => {
+    animateStrophe(prossimaStrofa);
+    prossimaStrofa = (prossimaStrofa + 1) % testoPoesia.length;
+  }, TEMPO_PERMANENZA_STROFA * 1000);
+}
+
+
+function aggiornaProgressBar()
+{
+  fotoMostrate++;
+  const percentuale = Math.min(100, (fotoMostrate / totaleFoto) * 100);
+  gsap.to("#photo-progress-bar", { width: percentuale + "%", duration: 0.5, ease: "power2.out" });
+}
+
+
+  // ===========================================================================
+  //  AUDIO
+  // ===========================================================================
+
+  const ctxAudio = new (window.AudioContext || window.webkitAudioContext)();
+
+  function preparaBrano(el) {
+    const source = ctxAudio.createMediaElementSource(el);
+    const gain = ctxAudio.createGain();
+    source.connect(gain).connect(ctxAudio.destination);
+    return { el, gain };
+  }
+
+  const brano1 = preparaBrano(document.getElementById("audio_a"));
+  const brano2 = preparaBrano(document.getElementById("audio_b"));
+  brano2.gain.gain.value = 0; // il secondo brano parte silenzioso
+
+  function crossfade(da, a, secondi) {
+    const now = ctxAudio.currentTime;
+    const steps = 200;
+    const fadeOut = new Float32Array(steps);
+    const fadeIn  = new Float32Array(steps);
+
+    for (let i = 0; i < steps; i++) {
+      const t = i / (steps - 1);
+      fadeIn[i]  = Math.pow(t, CURVA);
+      fadeOut[i] = Math.pow(1 - t, CURVA);
+    }
+
+    da.gain.gain.cancelScheduledValues(now);
+    a.gain.gain.cancelScheduledValues(now);
+
+    a.el.currentTime = 0;
+    a.el.play().catch(err => console.warn("Audio non avviato:", err));
+
+    da.gain.gain.setValueCurveAtTime(fadeOut, now, secondi);
+    a.gain.gain.setValueCurveAtTime(fadeIn, now, secondi);
+
+    setTimeout(() => da.el.pause(), secondi * 1000);
+  }
+
+  // Crossfade automatico: parte quando mancano CROSSFADE_SECONDI alla fine del primo brano
+  let crossfadeAvviato = false;
+
+  brano1.el.addEventListener("timeupdate", () => {
+    if (crossfadeAvviato) return;
+    if (brano1.el.duration - brano1.el.currentTime <= CROSSFADE_SECONDI) {
+      crossfadeAvviato = true;
+      crossfade(brano1, brano2, CROSSFADE_SECONDI);
+    }
+  });
+
+
+  // ===========================================================================
+  //  INIZIA
+  // ===========================================================================
+
+  document.getElementById("inizia-btn").onclick = async () => {
+    await ctxAudio.resume(); // necessario: serve un'azione dell'utente
+    brano1.el.play().catch(err => console.warn("Audio non avviato:", err));
+
+    gsap.to("#start-screen", {
+      opacity: 0,
+      duration: 1.5,
+      onComplete: () => {
+        document.getElementById("start-screen").style.display = "none";
+      }
+    });
+
+    startShow();
+  };
+</script>
+</body>
+</html>
