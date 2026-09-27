@@ -374,7 +374,7 @@
 	const TEMPO_ATTESA_FINALE     = 3;   // pausa dopo l'ultima strofa, prima della schermata finale
 
 	// Audio
-	const VOLUME_MASTER = .6;     // riduce il volume complessivo: 1 = pieno, 0.6 = 60%
+	const VOLUME_MASTER = .55;     // riduce il volume complessivo: 1 = pieno, 0.6 = 60%
 	const VEL_RIPRODUZIONE = .95; // 1 = normale, 0.9 = 10% più lento
 	const CROSSFADE_SECONDI = 20; // durata della dissolvenza tra i due brani
 	const CURVA = 2;              // 1 = lineare; più alto = ingresso più lento
@@ -525,7 +525,8 @@
   const speedY = 0.05;
   const rotationSpeed = 0.0005;
 
-  function animate() {
+  function animate()
+  {
 	 requestAnimationFrame(animate);
 
 	 const pos = particleSystem.geometry.attributes.position.array;
@@ -538,7 +539,7 @@
 	 particleSystem.rotation.y += rotationSpeed;
 	 renderer.render(scene, camera);
   }
-  animate();
+	animate();
 
   window.addEventListener("resize", () => {
 	 camera.aspect = window.innerWidth / window.innerHeight;
@@ -582,7 +583,7 @@ let totaleFoto = photosMusicaList.length + photosExtraList.length;
 		// La foto deve essere completamente scaricata prima di iniziare l'animazione.
 		await preloadImage(src);
 		fallimentiConsecutivi = 0;
-aggiornaProgressBar();
+		aggiornaProgressBar();
 
 		gsap.killTweensOf(currentImg);
 		gsap.killTweensOf(nextImg);
@@ -811,7 +812,8 @@ function aggiornaProgressBar()
   //  AUDIO
   // ===========================================================================
 
-  const ctxAudio = new (window.AudioContext || window.webkitAudioContext)();
+  //const ctxAudio = new (window.AudioContext || window.webkitAudioContext)();
+	const ctxAudio = new (window.AudioContext || window.webkitAudioContext)({ latencyHint: "playback" });
 
 	function preparaBrano(el) {
 	  const source = ctxAudio.createMediaElementSource(el);
