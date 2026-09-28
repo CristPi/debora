@@ -384,6 +384,37 @@
   //  UTILITÀ
   // ===========================================================================
 
+
+	// Impedisce lo spegnimento dello schermo del telefonino
+	let wakeLock = null;
+	async function mantieniSchermoAttivo() {
+	  if (!("wakeLock" in navigator)) {
+		 console.warn("Screen Wake Lock non supportato da questo browser.");
+		 return;
+	  }
+
+	  try {
+		 wakeLock = await navigator.wakeLock.request("screen");
+		 console.log("Wake Lock attivo: lo schermo resterà acceso.");
+		 wakeLock.addEventListener("release", () => {
+			console.log("Wake Lock rilasciato.");
+			wakeLock = null;
+		 });
+
+	  } catch (err) {
+		 console.warn("Impossibile attivare il Wake Lock:", err);
+	  }
+	}
+	
+	// Su alcuni telefoni il Wake Lock viene perso quando la pagina diventa temporaneamente invisibile, per esempio se il browser cambia stato.
+	// Lo richiede nuovamente quando la pagina torna visibile
+	document.addEventListener("visibilitychange", async () => {
+		if (document.visibilityState === "visible" && !wakeLock) {
+			await mantieniSchermoAttivo();
+		}
+	});
+
+
   function shuffleArray(array) {
 	 for (let i = array.length - 1; i > 0; i--) {
 		const j = Math.floor(Math.random() * (i + 1));
@@ -870,6 +901,10 @@ function aggiornaProgressBar()
   // ===========================================================================
 
   document.getElementById("inizia-btn").onclick = async () => {
+  
+	// Mantiene acceso lo schermo durante la presentazione
+	await mantieniSchermoAttivo();
+  
 	 await ctxAudio.resume(); // necessario: serve un'azione dell'utente
 	 brano1.el.play().catch(err => console.warn("Audio non avviato:", err));
 
