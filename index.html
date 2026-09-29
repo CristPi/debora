@@ -341,6 +341,105 @@
   //  CONFIGURAZIONE
   // ===========================================================================
 
+(function () {
+    const originale = {
+        log: console.log,
+        warn: console.warn,
+        error: console.error
+    };
+
+    const box = document.createElement("pre");
+
+    box.id = "mobile-console";
+    box.style.cssText = `
+        position: fixed;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        max-height: 40vh;
+        overflow-y: auto;
+        margin: 0;
+        padding: 10px;
+        box-sizing: border-box;
+        background: rgba(0, 0, 0, 0.95);
+        color: white;
+        font: 12px monospace;
+        white-space: pre-wrap;
+        z-index: 2147483647;
+    `;
+
+    document.addEventListener("DOMContentLoaded", () => {
+        document.body.appendChild(box);
+    });
+
+    function aggiungi(tipo, args) {
+        const testo = args.map(arg => {
+            if (typeof arg === "object") {
+                try {
+                    return JSON.stringify(arg);
+                } catch {
+                    return String(arg);
+                }
+            }
+            return String(arg);
+        }).join(" ");
+
+        const colori = {
+            log: "#00ff00",
+            warn: "#ffff00",
+            error: "#ff4444"
+        };
+
+        box.innerHTML +=
+            `<span style="color:${colori[tipo]}">[${tipo.toUpperCase()}] ${testo}</span>\n`;
+
+        box.scrollTop = box.scrollHeight;
+    }
+
+    console.log = function (...args) {
+        originale.log.apply(console, args);
+        aggiungi("log", args);
+    };
+
+    console.warn = function (...args) {
+        originale.warn.apply(console, args);
+        aggiungi("warn", args);
+    };
+
+    console.error = function (...args) {
+        originale.error.apply(console, args);
+        aggiungi("error", args);
+    };
+})();
+
+
+console.log("Wake Lock API:", "wakeLock" in navigator);
+console.log("Secure context:", window.isSecureContext);
+console.log("Visibility:", document.visibilityState);
+
+if ("wakeLock" in navigator) {
+    navigator.wakeLock.request("screen")
+        .then(lock => {
+            console.log("✅ WAKE LOCK ATTIVO", lock);
+
+            lock.addEventListener("release", () => {
+                console.log("⚠️ WAKE LOCK RILASCIATO");
+            });
+        })
+        .catch(err => {
+            console.error("❌ ERRORE WAKE LOCK:", err.name, err.message);
+        });
+}
+
+
+
+
+
+
+
+
+
+
   // Cartelle delle foto (relative a questo file)
   const DIR_FOTO_MUSICA = "foto_musica/";
   const DIR_FOTO_VARIE  = "foto_varie/";
